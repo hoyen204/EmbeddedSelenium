@@ -27,8 +27,6 @@ namespace EmbeddedSelenium
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
 
-        public HashSet<int> listChrome = new HashSet<int>();
-
         public Form1()
         {
             InitializeComponent();
@@ -52,12 +50,11 @@ namespace EmbeddedSelenium
                     var driverHandle = IntPtr.Zero;
                     do
                     {
-                        foreach(var item in Process.GetProcessesByName("chrome").Where(x => !string.IsNullOrEmpty(x.MainWindowTitle)).ToList())
+                        foreach (var item in Process.GetProcessesByName("chrome").Where(x => !string.IsNullOrEmpty(x.MainWindowTitle)).ToList())
                         {
                             if (item.MainWindowTitle.Contains(guid))
                             {
                                 driverHandle = item.MainWindowHandle;
-                                listChrome.Add(item.Id);
                             }
                         }
                         Thread.Sleep(10);
@@ -74,11 +71,12 @@ namespace EmbeddedSelenium
                     TabPage lastTab = mainTabControl.TabPages[lastIndex];
                     lastTab.Invoke(new Action(() =>
                     {
-                        lastTab.Text = $"Zalo {listChrome.Count}";
+                        lastTab.Text = $"Zalo {lastIndex}";
+                        lastTab.ToolTipText = driverHandle.ToInt32().ToString();
                         SetParent(driverHandle, lastTab.Handle);
                         MoveWindow(driverHandle, 0, 0, lastTab.Width, lastTab.Height, true);
                     }));
-                    driver.Navigate().GoToUrl("https://chat.zalo.me");
+                    //driver.Navigate().GoToUrl("https://chat.zalo.me");
 
                 })
                 { IsBackground = true }.Start();
@@ -90,12 +88,19 @@ namespace EmbeddedSelenium
         private void mainTabControl_Selecting(object sender, TabControlCancelEventArgs e)
         {
             if (e.TabPageIndex == mainTabControl.TabCount - 1)
+            {
                 e.Cancel = true;
+            }
+            else if (!string.IsNullOrEmpty(mainTabControl.SelectedTab.ToolTipText))
+            {
+                var driverHandle = new IntPtr(int.Parse(mainTabControl.SelectedTab.ToolTipText));
+                MoveWindow(driverHandle, 0, 0, mainTabControl.SelectedTab.Width, mainTabControl.SelectedTab.Height, true);
+            }
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            listChrome.ToList().ForEach(x => Process.GetProcessById(x)?.Kill());
+            Process.GetProcessesByName("chromedriver").ToList().ForEach(x => x.Kill());
         }
     }
 }
